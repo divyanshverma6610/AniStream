@@ -3,18 +3,19 @@
 // Replace with your Firebase project config
 // ============================================
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyB1VPgeK37C82VX41tdIgLTlIAGDtu3LKU",
+  authDomain: "anistream-221f3.firebaseapp.com",
+  projectId: "anistream-221f3",
+  storageBucket: "anistream-221f3.firebasestorage.app",
+  messagingSenderId: "248667390958",
+  appId: "1:248667390958:web:3f56fe0bd9e03043bbc4ff",
+  measurementId: "G-1CP7XTD5G2"
 };
 
 // ============================================
 // ADMIN EMAILS - Add your admin email here
 // ============================================
-const ADMIN_EMAILS = ["your-admin-email@gmail.com"];
+const ADMIN_EMAILS = ["divyanshverma6610@gmail.com"];
 
 // ============================================
 // FIREBASE INITIALIZE

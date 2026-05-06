@@ -1941,6 +1941,816 @@ function initApp() {
     showToast("Error loading app. Please refresh.", "error");
   });
 }
+// ============================================
+// ADMIN TAB SWITCHING
+// ============================================
+function switchAdminTab(tabName, btnEl) {
+  // Hide all tab contents
+  var contents = document.querySelectorAll(".admin-tab-content");
+  contents.forEach(function (c) { c.classList.remove("active"); });
+
+  // Remove active from all tab buttons
+  var tabs = document.querySelectorAll(".admin-tab");
+  tabs.forEach(function (t) { t.classList.remove("active"); });
+
+  // Show selected tab
+  var target = document.getElementById("tab-" + tabName);
+  if (target) target.classList.add("active");
+
+  // Activate clicked button
+  if (btnEl) btnEl.classList.add("active");
+}
+
+// ============================================
+// EXTRACT PLAYLIST ID FROM URL
+// ============================================
+function extractPlaylistId(url) {
+  if (!url) return null;
+  url = url.trim();
+
+  var patterns = [
+    /[?&]list=([a-zA-Z0-9_-]+)/,
+    /playlist\?list=([a-zA-Z0-9_-]+)/
+  ];
+
+  for (var i = 0; i < patterns.length; i++) {
+    var match = url.match(patterns[i]);
+    if (match && match[1]) return match[1];
+  }
+  return null;
+}
+
+// ============================================
+// PLAYLIST IMPORT - STATE
+// ============================================
+var playlistItems = [];
+var allSelected = true;
+
+// ============================================
+// FETCH PLAYLIST FROM YOUTUBE API
+// ============================================
+function importPlaylist() {
+  var apiKey = document.getElementById("yt-api-key")
+    ? document.getElementById("yt-api-key").value.trim() : "";
+  var playlistUrl = document.getElementById("playlist-url")
+    ? document.getElementById("playlist-url").value.trim() : "";
+  var animeName = document.getElementById("playlist-anime-name")
+    ? document.getElementById("playlist-anime-name").value.trim() : "";
+  var category = document.getElementById("playlist-category")
+    ? document.getElementById("playlist-category").value : "";
+  var maxVideos = document.getElementById("playlist-max")
+    ? parseInt(document.getElementById("playlist-max").value) || 50 : 50;
+
+  // Validate inputs
+  if (!apiKey) {
+    showToast("Please enter your YouTube API Key.", "error");
+    document.getElementById("yt-api-key").focus();
+    return;
+  }
+
+  if (!playlistUrl) {
+    showToast("Please enter a YouTube Playlist URL.", "error");
+    document.getElementById("playlist-url").focus();
+    return;
+  }
+
+  var playlistId = extractPlaylistId(playlistUrl);
+  if (!playlistId) {
+    showToast("Could not find playlist ID in URL. Make sure URL contains ?list=...", "error");
+    return;
+  }
+
+  if (!animeName) {
+    showToast("Please enter the Anime Name.", "error");
+    document.getElementById("playlist-anime-name").focus();
+    return;
+  }
+
+  if (!category) {
+    showToast("Please select a Category.", "error");
+    document.getElementById("playlist-category").focus();
+    return;
+  }
+
+  // Update button state
+  var btn = document.getElementById("import-playlist-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching playlist...';
+  }
+
+  playlistItems = [];
+  fetchPlaylistPage(apiKey, playlistId, null, maxVideos, btn);
+}
+
+// ============================================
+// FETCH PLAYLIST PAGES (handles pagination)
+// ============================================
+function fetchPlaylistPage(apiKey, playlistId, pageToken, maxVideos, btn) {
+  var url = "https://www.googleapis.com/youtube/v3/playlistItems" +
+    "?part=snippet,contentDetails" +
+    "&playlistId=" + encodeURIComponent(playlistId) +
+    "&maxResults=50" +
+    "&key=" + encodeURIComponent(apiKey);
+
+  if (pageToken) {
+    url += "&pageToken=" + encodeURIComponent(pageToken);
+  }
+
+  fetch(url)
+    .then(function (response) {
+      if (!response.ok) {
+        return response.json().then(function (errData) {
+          throw new Error(errData.error
+            ? errData.error.message
+            : "HTTP " + response.status);
+        });
+      }
+      return response.json();
+    })
+    .then(function (data) {
+      if (!data.items || data.items.length === 0) {
+        if (playlistItems.length === 0) {
+          showToast("No videos found in this playlist.", "error");
+          resetImportBtn(btn);
+          return;
+        }
+        showPlaylistPreview();
+        resetImportBtn(btn);
+        return;
+      }
+
+      // Add items from this page
+      data.items.forEach(function (item) {
+        if (playlistItems.length >= maxVideos) return;
+
+        var videoId = item.contentDetails
+          ? item.contentDetails.videoId
+          : (item.snippet.resourceId
+            ? item.snippet.resourceId.videoId : null);
+
+        if (!videoId) return;
+
+        // Skip deleted/private videos
+        var title = item.snippet.title || "";
+        if (title === "Deleted video" || title === "Private video") return;
+
+        var thumbnail = "";
+        if (item.snippet.thumbnails) {
+          thumbnail = (item.snippet.thumbnails.high
+            ? item.snippet.thumbnails.high.url
+            : (item.snippet.thumbnails.medium
+              ? item.snippet.thumbnails.medium.url
+              : (item.snippet.thumbnails.default
+                ? item.snippet.thumbnails.default.url : "")));
+        }
+
+        playlistItems.push({
+          videoId: videoId,
+          title: title,
+          thumbnail: thumbnail,
+          description: item.snippet.description || "",
+          position: item.snippet.position || 0
+        });
+      });
+
+      // Check if we need more pages
+      var hasMore = data.nextPageToken && playlistItems.length < maxVideos;
+      if (hasMore) {
+        var remaining = maxVideos - playlistItems.length;
+        if (btn) {
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching... (' +
+            playlistItems.length + ' videos loaded)';
+        }
+        fetchPlaylistPage(apiKey, playlistId, data.nextPageToken, maxVideos, btn);
+      } else {
+        showPlaylistPreview();
+        resetImportBtn(btn);
+      }
+    })
+    .catch(function (err) {
+      console.error("Playlist fetch error:", err);
+      var msg = "Error fetching playlist: " + err.message;
+
+      if (err.message.indexOf("API key") !== -1 ||
+        err.message.indexOf("keyInvalid") !== -1) {
+        msg = "Invalid API Key. Please check your YouTube Data API v3 key.";
+      } else if (err.message.indexOf("quota") !== -1) {
+        msg = "API quota exceeded. Try again tomorrow or use a different API key.";
+      } else if (err.message.indexOf("playlistNotFound") !== -1) {
+        msg = "Playlist not found. Make sure it is public or unlisted.";
+      }
+
+      showToast(msg, "error", 6000);
+      resetImportBtn(btn);
+    });
+}
+
+function resetImportBtn(btn) {
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-download"></i> Fetch & Preview Playlist';
+  }
+}
+
+// ============================================
+// SHOW PLAYLIST PREVIEW
+// ============================================
+function showPlaylistPreview() {
+  var header = document.getElementById("playlist-preview-header");
+  var list = document.getElementById("playlist-preview-list");
+  var countEl = document.getElementById("playlist-count");
+  var epStart = document.getElementById("playlist-ep-start")
+    ? parseInt(document.getElementById("playlist-ep-start").value) || 1 : 1;
+  var skipDupes = document.getElementById("playlist-skip-duplicates")
+    ? document.getElementById("playlist-skip-duplicates").checked : true;
+
+  if (header) header.style.display = "block";
+  if (countEl) countEl.textContent = playlistItems.length;
+  if (list) list.innerHTML = "";
+
+  if (playlistItems.length === 0) {
+    if (list) {
+      list.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted);">' +
+        "<p>No valid videos found in this playlist.</p></div>";
+    }
+    return;
+  }
+
+  // Build set of existing YouTube IDs for duplicate check
+  var existingIds = {};
+  allVideos.forEach(function (v) {
+    if (v.youtubeId) existingIds[v.youtubeId] = true;
+  });
+
+  var newCount = 0;
+  var dupCount = 0;
+
+  playlistItems.forEach(function (item, idx) {
+    var isDuplicate = existingIds[item.videoId] === true;
+    if (isDuplicate) dupCount++;
+    else newCount++;
+
+    var epNum = epStart + idx;
+    var thumb = item.thumbnail ||
+      "https://img.youtube.com/vi/" + item.videoId + "/hqdefault.jpg";
+
+    var wrapper = document.createElement("div");
+    wrapper.className = "playlist-preview-item" +
+      (isDuplicate ? " duplicate" : " selected");
+    wrapper.id = "preview-item-" + idx;
+
+    // Checkbox
+    var checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "playlist-check";
+    checkbox.checked = !isDuplicate || !skipDupes;
+    checkbox.id = "check-" + idx;
+    checkbox.onchange = function () {
+      if (this.checked) {
+        wrapper.classList.add("selected");
+      } else {
+        wrapper.classList.remove("selected");
+      }
+    };
+
+    // Thumbnail
+    var img = document.createElement("img");
+    img.className = "playlist-thumb";
+    img.src = thumb;
+    img.alt = item.title;
+    img.loading = "lazy";
+    img.onerror = function () {
+      this.src = "https://img.youtube.com/vi/" + item.videoId + "/hqdefault.jpg";
+      this.onerror = function () {
+        this.src = "https://via.placeholder.com/80x45/1a1a25/e50914?text=Ep" + epNum;
+        this.onerror = null;
+      };
+    };
+
+    // Info
+    var info = document.createElement("div");
+    info.className = "playlist-item-info";
+
+    var strong = document.createElement("strong");
+    strong.textContent = item.title || ("Episode " + epNum);
+    strong.title = item.title || "";
+
+    var span = document.createElement("span");
+    span.textContent = "Episode " + epNum + " · " + item.videoId;
+
+    info.appendChild(strong);
+    info.appendChild(span);
+
+    // Badge
+    var badge = document.createElement("span");
+    badge.className = "playlist-item-badge " +
+      (isDuplicate ? "badge-duplicate" : "badge-new");
+    badge.textContent = isDuplicate ? "Duplicate" : "New";
+
+    wrapper.appendChild(checkbox);
+    wrapper.appendChild(img);
+    wrapper.appendChild(info);
+    wrapper.appendChild(badge);
+    if (list) list.appendChild(wrapper);
+  });
+
+  // Show summary at top
+  if (list) {
+    var summary = document.createElement("div");
+    summary.className = "import-summary";
+    summary.innerHTML =
+      '<div class="summary-stat">' +
+      '<span class="stat-num">' + playlistItems.length + '</span>' +
+      '<span class="stat-label">Total Videos</span></div>' +
+      '<div class="summary-stat">' +
+      '<span class="stat-num" style="color:#00b894;">' + newCount + '</span>' +
+      '<span class="stat-label">New Videos</span></div>' +
+      '<div class="summary-stat">' +
+      '<span class="stat-num" style="color:#fdcb6e;">' + dupCount + '</span>' +
+      '<span class="stat-label">Duplicates</span></div>';
+    list.insertBefore(summary, list.firstChild);
+  }
+
+  showToast(
+    "Found " + playlistItems.length + " videos! (" + newCount + " new, " + dupCount + " duplicates)",
+    "success",
+    4000
+  );
+}
+
+// ============================================
+// SELECT ALL / DESELECT ALL
+// ============================================
+function toggleSelectAll() {
+  allSelected = !allSelected;
+  var btn = document.getElementById("select-all-btn");
+  if (btn) btn.textContent = allSelected ? "Deselect All" : "Select All";
+
+  playlistItems.forEach(function (item, idx) {
+    var checkbox = document.getElementById("check-" + idx);
+    var wrapper = document.getElementById("preview-item-" + idx);
+    if (checkbox) checkbox.checked = allSelected;
+    if (wrapper) {
+      if (allSelected) wrapper.classList.add("selected");
+      else wrapper.classList.remove("selected");
+    }
+  });
+}
+
+// ============================================
+// CONFIRM AND IMPORT SELECTED PLAYLIST ITEMS
+// ============================================
+function confirmPlaylistImport() {
+  if (!currentUser || !isAdmin) {
+    showToast("Admin access required.", "error");
+    return;
+  }
+
+  var animeName = document.getElementById("playlist-anime-name")
+    ? document.getElementById("playlist-anime-name").value.trim() : "";
+  var category = document.getElementById("playlist-category")
+    ? document.getElementById("playlist-category").value : "";
+  var description = document.getElementById("playlist-description")
+    ? document.getElementById("playlist-description").value.trim() : "";
+  var epStart = document.getElementById("playlist-ep-start")
+    ? parseInt(document.getElementById("playlist-ep-start").value) || 1 : 1;
+  var firstFeatured = document.getElementById("playlist-first-featured")
+    ? document.getElementById("playlist-first-featured").checked : false;
+
+  if (!animeName || !category) {
+    showToast("Please fill in Anime Name and Category.", "error");
+    return;
+  }
+
+  // Get selected items
+  var selectedItems = [];
+  playlistItems.forEach(function (item, idx) {
+    var checkbox = document.getElementById("check-" + idx);
+    if (checkbox && checkbox.checked) {
+      selectedItems.push({ item: item, idx: idx });
+    }
+  });
+
+  if (selectedItems.length === 0) {
+    showToast("No videos selected. Please select at least one.", "error");
+    return;
+  }
+
+  if (!confirm("Import " + selectedItems.length + " videos as '" + animeName + "'?\n\nThis will add them to your database.")) {
+    return;
+  }
+
+  // Show progress
+  var progressDiv = document.getElementById("import-progress");
+  var progressFill = document.getElementById("progress-fill");
+  var progressText = document.getElementById("progress-text");
+  var confirmBtn = document.getElementById("confirm-import-btn");
+
+  if (progressDiv) progressDiv.style.display = "block";
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+  }
+
+  // Import sequentially to avoid overwhelming Firestore
+  var imported = 0;
+  var skipped = 0;
+  var errors = 0;
+  var currentIndex = 0;
+
+  function importNext() {
+    if (currentIndex >= selectedItems.length) {
+      // All done
+      var pct = 100;
+      if (progressFill) progressFill.style.width = pct + "%";
+      if (progressText) {
+        progressText.textContent = "Done! Imported: " + imported +
+          " | Skipped: " + skipped + " | Errors: " + errors;
+      }
+
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Import Selected';
+      }
+
+      showToast(
+        "Import complete! " + imported + " videos added successfully 🎉",
+        "success",
+        5000
+      );
+
+      // Refresh home page
+      var homePage = document.getElementById("page-home");
+      if (homePage && homePage.classList.contains("active")) {
+        loadHomePage();
+      }
+
+      // Reload admin list
+      loadAdminVideos();
+      return;
+    }
+
+    var entry = selectedItems[currentIndex];
+    var item = entry.item;
+    var epNum = epStart + entry.idx;
+    var isFirst = currentIndex === 0;
+
+    // Update progress
+    var pct = Math.round((currentIndex / selectedItems.length) * 100);
+    if (progressFill) progressFill.style.width = pct + "%";
+    if (progressText) {
+      progressText.textContent = "Importing " + (currentIndex + 1) +
+        " of " + selectedItems.length + ": Episode " + epNum;
+    }
+
+    // Check duplicate again before inserting
+    var alreadyExists = false;
+    for (var i = 0; i < allVideos.length; i++) {
+      if (allVideos[i].youtubeId === item.videoId) {
+        alreadyExists = true;
+        break;
+      }
+    }
+
+    if (alreadyExists) {
+      skipped++;
+      currentIndex++;
+
+      // Mark as skipped in preview
+      var wrapper = document.getElementById("preview-item-" + entry.idx);
+      if (wrapper) {
+        wrapper.className = "playlist-preview-item duplicate";
+        var badge = wrapper.querySelector(".playlist-item-badge");
+        if (badge) {
+          badge.className = "playlist-item-badge badge-duplicate";
+          badge.textContent = "Skipped";
+        }
+      }
+
+      setTimeout(importNext, 50);
+      return;
+    }
+
+    var videoData = {
+      youtubeId: item.videoId,
+      youtubeUrl: "https://www.youtube.com/watch?v=" + item.videoId,
+      animeName: animeName,
+      episode: epNum,
+      category: category,
+      description: description ||
+        (item.description ? item.description.substring(0, 300) : ""),
+      customThumbnail: item.thumbnail || "",
+      featured: isFirst && firstFeatured,
+      likes: 0,
+      views: 0,
+      createdBy: currentUser.uid,
+      createdByEmail: currentUser.email,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    db.collection("videos").add(videoData)
+      .then(function (docRef) {
+        imported++;
+
+        // Add to local array
+        var newVideo = {};
+        for (var key in videoData) {
+          if (videoData.hasOwnProperty(key)) newVideo[key] = videoData[key];
+        }
+        newVideo.id = docRef.id;
+        newVideo.createdAt = { toDate: function () { return new Date(); } };
+        allVideos.unshift(newVideo);
+
+        // Mark as imported in preview
+        var wrapper = document.getElementById("preview-item-" + entry.idx);
+        if (wrapper) {
+          wrapper.className = "playlist-preview-item imported";
+          var badge = wrapper.querySelector(".playlist-item-badge");
+          if (badge) {
+            badge.className = "playlist-item-badge badge-imported";
+            badge.textContent = "Imported ✓";
+          }
+        }
+
+        currentIndex++;
+        // Small delay to avoid Firestore rate limits
+        setTimeout(importNext, 200);
+      })
+      .catch(function (err) {
+        console.error("Import error for video " + item.videoId + ":", err);
+        errors++;
+        currentIndex++;
+        setTimeout(importNext, 300);
+      });
+  }
+
+  importNext();
+}
+
+// ============================================
+// BULK URL IMPORT
+// ============================================
+
+// Live URL counter for bulk textarea
+var bulkUrlsTextarea = document.getElementById("bulk-urls");
+if (bulkUrlsTextarea) {
+  bulkUrlsTextarea.addEventListener("input", function () {
+    var lines = this.value.split("\n");
+    var validUrls = [];
+
+    lines.forEach(function (line) {
+      var trimmed = line.trim();
+      if (trimmed) {
+        var vid = extractYouTubeId(trimmed);
+        if (vid) validUrls.push(vid);
+      }
+    });
+
+    var countEl = document.getElementById("bulk-url-count");
+    if (countEl) {
+      countEl.textContent = validUrls.length + " valid YouTube URL" +
+        (validUrls.length !== 1 ? "s" : "") + " detected";
+    }
+
+    showBulkPreview(validUrls);
+  });
+}
+
+function showBulkPreview(videoIds) {
+  var list = document.getElementById("bulk-preview-list");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  if (!videoIds || videoIds.length === 0) {
+    list.innerHTML =
+      '<div style="padding:30px;text-align:center;color:var(--text-muted);">' +
+      '<i class="fas fa-paste" style="font-size:2rem;color:var(--accent);' +
+      'display:block;margin-bottom:12px;"></i>' +
+      "<p>No valid YouTube URLs detected yet</p></div>";
+    return;
+  }
+
+  var existingIds = {};
+  allVideos.forEach(function (v) {
+    if (v.youtubeId) existingIds[v.youtubeId] = true;
+  });
+
+  var newCount = 0;
+  var dupCount = 0;
+
+  videoIds.forEach(function (videoId, idx) {
+    var isDuplicate = existingIds[videoId] === true;
+    if (isDuplicate) dupCount++;
+    else newCount++;
+
+    var thumb = "https://img.youtube.com/vi/" + videoId + "/hqdefault.jpg";
+
+    var item = document.createElement("div");
+    item.className = "playlist-preview-item" + (isDuplicate ? " duplicate" : "");
+
+    var img = document.createElement("img");
+    img.className = "playlist-thumb";
+    img.src = thumb;
+    img.alt = "Video " + (idx + 1);
+    img.loading = "lazy";
+    img.onerror = function () {
+      this.src = "https://via.placeholder.com/80x45/1a1a25/e50914?text=Ep" + (idx + 1);
+      this.onerror = null;
+    };
+
+    var info = document.createElement("div");
+    info.className = "playlist-item-info";
+
+    var strong = document.createElement("strong");
+    strong.textContent = "Episode " + (idx + 1);
+
+    var span = document.createElement("span");
+    span.textContent = "ID: " + videoId;
+
+    info.appendChild(strong);
+    info.appendChild(span);
+
+    var badge = document.createElement("span");
+    badge.className = "playlist-item-badge " +
+      (isDuplicate ? "badge-duplicate" : "badge-new");
+    badge.textContent = isDuplicate ? "Duplicate" : "New";
+
+    item.appendChild(img);
+    item.appendChild(info);
+    item.appendChild(badge);
+    list.appendChild(item);
+  });
+
+  // Summary
+  var summary = document.createElement("div");
+  summary.className = "import-summary";
+  summary.style.marginBottom = "12px";
+  summary.innerHTML =
+    '<div class="summary-stat">' +
+    '<span class="stat-num">' + videoIds.length + '</span>' +
+    '<span class="stat-label">Total</span></div>' +
+    '<div class="summary-stat">' +
+    '<span class="stat-num" style="color:#00b894;">' + newCount + '</span>' +
+    '<span class="stat-label">New</span></div>' +
+    '<div class="summary-stat">' +
+    '<span class="stat-num" style="color:#fdcb6e;">' + dupCount + '</span>' +
+    '<span class="stat-label">Duplicates</span></div>';
+  list.insertBefore(summary, list.firstChild);
+}
+
+function bulkImport() {
+  if (!currentUser || !isAdmin) {
+    showToast("Admin access required.", "error");
+    return;
+  }
+
+  var textarea = document.getElementById("bulk-urls");
+  var animeName = document.getElementById("bulk-anime-name")
+    ? document.getElementById("bulk-anime-name").value.trim() : "";
+  var category = document.getElementById("bulk-category")
+    ? document.getElementById("bulk-category").value : "";
+  var description = document.getElementById("bulk-description")
+    ? document.getElementById("bulk-description").value.trim() : "";
+  var epStart = document.getElementById("bulk-ep-start")
+    ? parseInt(document.getElementById("bulk-ep-start").value) || 1 : 1;
+  var firstFeatured = document.getElementById("bulk-first-featured")
+    ? document.getElementById("bulk-first-featured").checked : false;
+
+  if (!textarea || !textarea.value.trim()) {
+    showToast("Please paste at least one YouTube URL.", "error");
+    return;
+  }
+
+  if (!animeName) {
+    showToast("Please enter the Anime Name.", "error");
+    document.getElementById("bulk-anime-name").focus();
+    return;
+  }
+
+  if (!category) {
+    showToast("Please select a Category.", "error");
+    document.getElementById("bulk-category").focus();
+    return;
+  }
+
+  // Parse URLs
+  var lines = textarea.value.split("\n");
+  var videoIds = [];
+  var seen = {};
+
+  lines.forEach(function (line) {
+    var trimmed = line.trim();
+    if (!trimmed) return;
+    var vid = extractYouTubeId(trimmed);
+    if (vid && !seen[vid]) {
+      seen[vid] = true;
+      videoIds.push(vid);
+    }
+  });
+
+  if (videoIds.length === 0) {
+    showToast("No valid YouTube URLs found. Please check your input.", "error");
+    return;
+  }
+
+  // Filter out duplicates
+  var existingIds = {};
+  allVideos.forEach(function (v) {
+    if (v.youtubeId) existingIds[v.youtubeId] = true;
+  });
+
+  var toImport = videoIds.filter(function (vid) {
+    return !existingIds[vid];
+  });
+
+  var dupCount = videoIds.length - toImport.length;
+
+  if (toImport.length === 0) {
+    showToast("All " + videoIds.length + " videos already exist in database!", "info", 5000);
+    return;
+  }
+
+  if (!confirm(
+    "Import " + toImport.length + " videos as '" + animeName + "'?" +
+    (dupCount > 0 ? "\n(" + dupCount + " duplicates will be skipped)" : "") +
+    "\n\nThis will add them all to your database."
+  )) return;
+
+  showToast("Starting bulk import of " + toImport.length + " videos...", "info");
+
+  var imported = 0;
+  var errors = 0;
+  var idx = 0;
+
+  function importNextBulk() {
+    if (idx >= toImport.length) {
+      showToast(
+        "Bulk import complete! " + imported + " videos added" +
+        (errors > 0 ? " (" + errors + " errors)" : "") + " 🎉",
+        "success",
+        5000
+      );
+      loadAdminVideos();
+      var homePage = document.getElementById("page-home");
+      if (homePage && homePage.classList.contains("active")) {
+        loadHomePage();
+      }
+      return;
+    }
+
+    var videoId = toImport[idx];
+    var epNum = epStart + idx;
+    var isFirst = idx === 0;
+
+    var videoData = {
+      youtubeId: videoId,
+      youtubeUrl: "https://www.youtube.com/watch?v=" + videoId,
+      animeName: animeName,
+      episode: epNum,
+      category: category,
+      description: description,
+      customThumbnail: "https://img.youtube.com/vi/" + videoId + "/hqdefault.jpg",
+      featured: isFirst && firstFeatured,
+      likes: 0,
+      views: 0,
+      createdBy: currentUser.uid,
+      createdByEmail: currentUser.email,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    db.collection("videos").add(videoData)
+      .then(function (docRef) {
+        imported++;
+
+        var newVideo = {};
+        for (var key in videoData) {
+          if (videoData.hasOwnProperty(key)) newVideo[key] = videoData[key];
+        }
+        newVideo.id = docRef.id;
+        newVideo.createdAt = { toDate: function () { return new Date(); } };
+        allVideos.unshift(newVideo);
+
+        showToast(
+          "Imported " + imported + "/" + toImport.length + ": Ep " + epNum,
+          "info",
+          1500
+        );
+
+        idx++;
+        setTimeout(importNextBulk, 250);
+      })
+      .catch(function (err) {
+        console.error("Bulk import error:", err);
+        errors++;
+        idx++;
+        setTimeout(importNextBulk, 300);
+      });
+  }
+
+  importNextBulk();
+}
 
 // Start the app
 initApp();

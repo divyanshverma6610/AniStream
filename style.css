@@ -801,3 +801,251 @@ img { max-width: 100%; }
   #toast-container { right: 16px; bottom: 16px; left: 16px; }
   .toast { min-width: unset; }
 }
+/* ============================================
+   ADMIN TABS
+   ============================================ */
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0;
+  flex-wrap: wrap;
+}
+
+.admin-tab {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 10px 20px;
+  border-radius: 8px 8px 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition);
+  border: 2px solid transparent;
+  border-bottom: none;
+  margin-bottom: -2px;
+}
+
+.admin-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+
+.admin-tab.active {
+  color: var(--accent);
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  border-bottom-color: var(--bg-secondary);
+}
+
+.admin-tab-content {
+  display: none;
+}
+
+.admin-tab-content.active {
+  display: block;
+}
+
+/* ============================================
+   INFO BOX
+   ============================================ */
+.info-box {
+  background: rgba(74, 144, 226, 0.1);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.info-box i {
+  color: #74b9ff;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.info-box strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.info-box p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ============================================
+   IMPORT PROGRESS BAR
+   ============================================ */
+.import-progress {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  width: 0%;
+}
+
+#progress-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ============================================
+   PLAYLIST PREVIEW ITEM
+   ============================================ */
+.playlist-preview-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.playlist-preview-item:hover {
+  background: var(--bg-card-hover);
+}
+
+.playlist-preview-item.selected {
+  border-color: var(--accent);
+  background: rgba(229, 9, 20, 0.05);
+}
+
+.playlist-preview-item.duplicate {
+  border-color: #fdcb6e;
+  opacity: 0.6;
+}
+
+.playlist-preview-item.imported {
+  border-color: #00b894;
+  background: rgba(0, 184, 148, 0.05);
+}
+
+.playlist-check {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.playlist-thumb {
+  width: 80px;
+  height: 45px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+}
+
+.playlist-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.playlist-item-info strong {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+
+.playlist-item-info span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.playlist-item-badge {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.badge-duplicate {
+  background: rgba(253, 203, 110, 0.2);
+  color: #fdcb6e;
+  border: 1px solid rgba(253, 203, 110, 0.4);
+}
+
+.badge-new {
+  background: rgba(0, 184, 148, 0.2);
+  color: #00b894;
+  border: 1px solid rgba(0, 184, 148, 0.4);
+}
+
+.badge-imported {
+  background: rgba(116, 185, 255, 0.2);
+  color: #74b9ff;
+  border: 1px solid rgba(116, 185, 255, 0.4);
+}
+
+/* ============================================
+   BULK URL COUNT
+   ============================================ */
+#bulk-url-count {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ============================================
+   IMPORT SUMMARY
+   ============================================ */
+.import-summary {
+  background: rgba(0, 184, 148, 0.1);
+  border: 1px solid rgba(0, 184, 148, 0.3);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.summary-stat {
+  text-align: center;
+}
+
+.summary-stat .stat-num {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: block;
+}
+
+.summary-stat .stat-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}

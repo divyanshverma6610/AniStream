@@ -324,26 +324,40 @@
   </div>
 
   <!-- ADMIN PANEL PAGE -->
-  <div id="page-admin" class="page">
-    <div class="page-container">
-      <div class="page-header">
-        <h1><i class="fas fa-shield-alt"></i> Admin Panel</h1>
-        <p class="admin-subtitle">Manage anime videos on the platform</p>
+  <!-- ADMIN PANEL PAGE -->
+<div id="page-admin" class="page">
+  <div class="page-container">
+    <div class="page-header">
+      <h1><i class="fas fa-shield-alt"></i> Admin Panel</h1>
+      <p class="admin-subtitle">Manage anime videos on the platform</p>
+    </div>
+    <div id="admin-auth-msg" class="auth-message" style="display:none"></div>
+    <div id="admin-content" style="display:none">
+
+      <!-- TAB BUTTONS -->
+      <div class="admin-tabs">
+        <button class="admin-tab active" onclick="switchAdminTab('single', this)">
+          <i class="fas fa-plus"></i> Add Single Video
+        </button>
+        <button class="admin-tab" onclick="switchAdminTab('playlist', this)">
+          <i class="fas fa-list"></i> Import Playlist
+        </button>
+        <button class="admin-tab" onclick="switchAdminTab('bulk', this)">
+          <i class="fas fa-paste"></i> Bulk URL Paste
+        </button>
       </div>
-      <div id="admin-auth-msg" class="auth-message" style="display:none">
-        <i class="fas fa-ban"></i>
-        <h3>Access Denied</h3>
-        <p>You don't have admin privileges</p>
-      </div>
-      <div id="admin-content" style="display:none">
+
+      <!-- TAB: SINGLE VIDEO -->
+      <div class="admin-tab-content active" id="tab-single">
         <div class="admin-layout">
           <div class="admin-form-card">
-            <h3><i class="fas fa-plus-circle"></i> Add New Video</h3>
+            <h3><i class="fas fa-plus-circle"></i> Add Single Video</h3>
             <form id="add-video-form" onsubmit="addVideo(event)">
               <div class="form-group">
-                <label for="video-youtube-url">YouTube URL *</label>
-                <input type="url" id="video-youtube-url" placeholder="https://www.youtube.com/watch?v=..." required />
-                <small>Paste the full YouTube video URL</small>
+                <label>YouTube URL *</label>
+                <input type="url" id="video-youtube-url"
+                  placeholder="https://www.youtube.com/watch?v=..." required />
+                <small>Paste any YouTube video link</small>
               </div>
               <div class="form-group">
                 <label>Video Preview</label>
@@ -353,16 +367,18 @@
                 </div>
               </div>
               <div class="form-group">
-                <label for="video-anime-name">Anime Name *</label>
-                <input type="text" id="video-anime-name" placeholder="e.g. Attack on Titan" required />
+                <label>Anime Name *</label>
+                <input type="text" id="video-anime-name"
+                  placeholder="e.g. Sword Art Online" required />
               </div>
               <div class="form-group">
-                <label for="video-episode">Episode Number *</label>
-                <input type="number" id="video-episode" placeholder="e.g. 1" min="0" required />
+                <label>Episode Number *</label>
+                <input type="number" id="video-episode"
+                  placeholder="1" min="0" required />
                 <small>Use 0 for trailers/movies</small>
               </div>
               <div class="form-group">
-                <label for="video-category">Category *</label>
+                <label>Category *</label>
                 <select id="video-category" required>
                   <option value="">Select category...</option>
                   <option value="Action">Action</option>
@@ -376,13 +392,14 @@
                 </select>
               </div>
               <div class="form-group">
-                <label for="video-description">Description</label>
-                <textarea id="video-description" placeholder="Brief description of the anime/episode..." rows="3"></textarea>
+                <label>Description</label>
+                <textarea id="video-description"
+                  placeholder="Brief description..." rows="3"></textarea>
               </div>
               <div class="form-group">
-                <label for="video-thumbnail">Custom Thumbnail URL (optional)</label>
-                <input type="url" id="video-thumbnail" placeholder="https://example.com/image.jpg" />
-                <small>Leave empty to auto-generate from YouTube</small>
+                <label>Custom Thumbnail URL (optional)</label>
+                <input type="url" id="video-thumbnail"
+                  placeholder="https://example.com/image.jpg" />
               </div>
               <div class="form-group">
                 <label class="checkbox-label">
@@ -397,8 +414,13 @@
           </div>
           <div class="admin-list-card">
             <div class="admin-list-header">
-              <h3><i class="fas fa-list"></i> All Videos (<span id="video-count">0</span>)</h3>
-              <input type="text" id="admin-search" placeholder="Search videos..." oninput="filterAdminVideos()" />
+              <h3>
+                <i class="fas fa-list"></i>
+                All Videos (<span id="video-count">0</span>)
+              </h3>
+              <input type="text" id="admin-search"
+                placeholder="Search videos..."
+                oninput="filterAdminVideos()" />
             </div>
             <div class="admin-video-list" id="admin-video-list">
               <div class="skeleton-card" style="height:65px;width:100%"></div>
@@ -408,9 +430,226 @@
           </div>
         </div>
       </div>
+
+      <!-- TAB: PLAYLIST IMPORT -->
+      <div class="admin-tab-content" id="tab-playlist">
+        <div class="admin-layout">
+          <div class="admin-form-card">
+            <h3><i class="fas fa-list"></i> Import YouTube Playlist</h3>
+            <div class="info-box">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <strong>How it works:</strong>
+                <p>Paste a YouTube playlist URL and all videos will be
+                imported automatically. Perfect for Muse Asia playlists!</p>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+              <label>YouTube API Key *</label>
+              <input type="text" id="yt-api-key"
+                placeholder="AIzaSy..." />
+              <small>
+                Get free API key from
+                <a href="https://console.cloud.google.com"
+                  target="_blank" style="color:var(--accent)">
+                  Google Cloud Console
+                </a>
+                → Enable YouTube Data API v3
+              </small>
+            </div>
+            <div class="form-group">
+              <label>Playlist URL *</label>
+              <input type="url" id="playlist-url"
+                placeholder="https://www.youtube.com/playlist?list=..." />
+              <small>
+                Example Muse Asia playlists:<br/>
+                Sword Art Online, That Time I Got Reincarnated as a Slime,
+                KonoSuba, Toradora, Overlord
+              </small>
+            </div>
+            <div class="form-group">
+              <label>Anime Name *</label>
+              <input type="text" id="playlist-anime-name"
+                placeholder="e.g. Sword Art Online" />
+            </div>
+            <div class="form-group">
+              <label>Category *</label>
+              <select id="playlist-category">
+                <option value="">Select category...</option>
+                <option value="Action">Action</option>
+                <option value="Romance">Romance</option>
+                <option value="Comedy">Comedy</option>
+                <option value="Slice of Life">Slice of Life</option>
+                <option value="Fantasy">Fantasy</option>
+                <option value="Sci-Fi">Sci-Fi</option>
+                <option value="Horror">Horror</option>
+                <option value="Sports">Sports</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Description (applies to all episodes)</label>
+              <textarea id="playlist-description"
+                placeholder="Brief description of this anime..."
+                rows="3"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Episode Number Start</label>
+              <input type="number" id="playlist-ep-start"
+                value="1" min="0" />
+              <small>First video will get this episode number</small>
+            </div>
+            <div class="form-group">
+              <label>Max Videos to Import</label>
+              <input type="number" id="playlist-max"
+                value="50" min="1" max="200" />
+              <small>YouTube API allows max 50 per request (200 with pagination)</small>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="playlist-skip-duplicates" checked />
+                Skip duplicate videos (recommended)
+              </label>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="playlist-first-featured" />
+                Feature Episode 1 on Hero Banner
+              </label>
+            </div>
+            <button class="btn-submit" id="import-playlist-btn"
+              onclick="importPlaylist()">
+              <i class="fas fa-download"></i> Fetch & Preview Playlist
+            </button>
+          </div>
+
+          <!-- Playlist Preview -->
+          <div class="admin-list-card">
+            <div id="playlist-preview-header" style="display:none">
+              <div class="admin-list-header">
+                <h3>
+                  <i class="fas fa-eye"></i>
+                  Preview (<span id="playlist-count">0</span> videos)
+                </h3>
+                <div style="display:flex;gap:8px;">
+                  <button class="filter-btn active" id="select-all-btn"
+                    onclick="toggleSelectAll()">
+                    Deselect All
+                  </button>
+                  <button class="btn-submit" style="width:auto;padding:8px 16px;"
+                    id="confirm-import-btn" onclick="confirmPlaylistImport()">
+                    <i class="fas fa-upload"></i>
+                    Import Selected
+                  </button>
+                </div>
+              </div>
+              <div class="import-progress" id="import-progress"
+                style="display:none">
+                <div class="progress-bar">
+                  <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p id="progress-text">Importing...</p>
+              </div>
+            </div>
+            <div id="playlist-preview-list" class="admin-video-list">
+              <div style="padding:40px;text-align:center;color:var(--text-muted);">
+                <i class="fab fa-youtube"
+                  style="font-size:3rem;color:var(--accent);display:block;margin-bottom:12px;">
+                </i>
+                <p>Enter playlist URL and click "Fetch & Preview"</p>
+                <p style="font-size:.8rem;margin-top:8px;">
+                  to see all videos before importing
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: BULK URL PASTE -->
+      <div class="admin-tab-content" id="tab-bulk">
+        <div class="admin-layout">
+          <div class="admin-form-card">
+            <h3><i class="fas fa-paste"></i> Bulk URL Import</h3>
+            <div class="info-box">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <strong>No API Key needed!</strong>
+                <p>Paste multiple YouTube URLs (one per line).
+                Works without YouTube API key.</p>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+              <label>YouTube URLs (one per line) *</label>
+              <textarea id="bulk-urls"
+                placeholder="https://www.youtube.com/watch?v=XXXXXXXXXXX
+https://www.youtube.com/watch?v=XXXXXXXXXXX
+https://www.youtube.com/watch?v=XXXXXXXXXXX
+https://youtu.be/XXXXXXXXXXX"
+                rows="10" style="font-family:monospace;font-size:.8rem;"></textarea>
+              <small id="bulk-url-count">0 URLs detected</small>
+            </div>
+            <div class="form-group">
+              <label>Anime Name *</label>
+              <input type="text" id="bulk-anime-name"
+                placeholder="e.g. That Time I Got Reincarnated as a Slime" />
+            </div>
+            <div class="form-group">
+              <label>Category *</label>
+              <select id="bulk-category">
+                <option value="">Select category...</option>
+                <option value="Action">Action</option>
+                <option value="Romance">Romance</option>
+                <option value="Comedy">Comedy</option>
+                <option value="Slice of Life">Slice of Life</option>
+                <option value="Fantasy">Fantasy</option>
+                <option value="Sci-Fi">Sci-Fi</option>
+                <option value="Horror">Horror</option>
+                <option value="Sports">Sports</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <textarea id="bulk-description"
+                placeholder="Description for all episodes..."
+                rows="3"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Starting Episode Number</label>
+              <input type="number" id="bulk-ep-start"
+                value="1" min="0" />
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="bulk-first-featured" />
+                Feature first episode on Hero Banner
+              </label>
+            </div>
+            <button class="btn-submit" onclick="bulkImport()">
+              <i class="fas fa-upload"></i>
+              Import All URLs
+            </button>
+          </div>
+
+          <!-- Bulk Preview -->
+          <div class="admin-list-card">
+            <div class="admin-list-header">
+              <h3><i class="fas fa-eye"></i> URL Preview</h3>
+            </div>
+            <div id="bulk-preview-list" class="admin-video-list">
+              <div style="padding:40px;text-align:center;color:var(--text-muted);">
+                <i class="fas fa-paste"
+                  style="font-size:3rem;color:var(--accent);display:block;margin-bottom:12px;">
+                </i>
+                <p>Paste URLs on the left to see preview</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
-
+</div>
   <!-- Video Detail Modal -->
   <div class="modal-overlay" id="video-modal" onclick="closeModal(event)">
     <div class="modal-content">
